@@ -7,19 +7,20 @@
 
 static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"obj", "unique", "debug", NULL};
+    static char *kwlist[] = {"obj", "unique", "debug", "object_hook",  NULL};
     PyObject *newobj;
     PyObject *oinput = NULL;
     PyObject *ounique = NULL;
     PyObject *odebug = NULL;
+    PyObject *ohook = NULL;
     binaryplist_encoder encoder;
     
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OO", kwlist, &oinput, &ounique, &odebug)) {   
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOO", kwlist, &oinput, &ounique,
+        &odebug, &ohook)) {   
         return NULL;
     }   
 
     memset(&encoder, 0, sizeof(binaryplist_encoder));
-    encoder.root = oinput;
     encoder.ref_table = PyDict_New();
     encoder.uniques = PyDict_New();
     encoder.objects = PyList_New(0);
@@ -31,6 +32,7 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     if (odebug && PyObject_IsTrue(odebug)) {
         encoder.debug = 1;
     }
+    encoder.object_hook = ohook;
     encoder_encode_object(&encoder, oinput);
     encoder_write(&encoder);
     newobj = PyString_FromStringAndSize(utstring_body(encoder.output),

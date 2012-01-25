@@ -318,12 +318,36 @@ static int encode_tuple(binaryplist_encoder *encoder, PyObject *tuple)
 
 int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
 {
+    if (!object) {
+        PyErr_SetString(PLIST_Error, "object contains an unsupported type");
+        return BINARYPLIST_ERROR;
+    }
     if (encoder->debug) {
         fprintf(stderr, "encode_object(ref:%d): ", encoder->nobjects);
         PyObject_Print(object, stderr, 0); 
         fprintf(stderr, "\n");
     }
 
+    /* Add supported data types below */
+    if (!PyDict_Check(object) && !PyList_Check(object) && !PyTuple_Check(object)
+        && object != Py_True && object != Py_False && object != Py_None
+        && !PyString_Check(object) && !PyUnicode_Check(object)
+        && !PyFloat_Check(object) && !PyInt_Check(object)
+        && !PyDateTime_Check(object) && !PyDate_Check(object)
+        && !PyLong_Check(object) ){
+
+        if (encoder->object_hook != Py_None) {
+            fprintf(stderr, "object_hook(obj:%d): ", encoder->nobjects);
+            PyObject_Print(encoder->object_hook, stderr, 0); 
+            fprintf(stderr, "\n");
+            return encoder_encode_object(encoder,
+                PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL));
+        }    
+        PyErr_SetString(PLIST_Error, "object contains an unsupported type");
+        return BINARYPLIST_ERROR;
+    }
+
+    if (!encoder->root) encoder->root = object;
     PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects++));
     PyList_Append(encoder->objects, object);
 
@@ -333,15 +357,6 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         return encode_list(encoder, object);
     } else if (PyTuple_Check(object)) {
         return encode_tuple(encoder, object);
-
-    /* Add supported data types that are not iterable below */
-    } else if (object != Py_True && object != Py_False && object != Py_None
-               && !PyString_Check(object) && !PyUnicode_Check(object)
-               && !PyFloat_Check(object) && !PyInt_Check(object)
-               && !PyDateTime_Check(object) && !PyDate_Check(object) && !PyTime_Check(object)
-               && !PyLong_Check(object) ){
-        PyErr_SetString(PLIST_Error, "object contains an unsupported type");
-        return BINARYPLIST_ERROR;
     }
     return BINARYPLIST_OK;
 }

@@ -49,6 +49,8 @@ typedef struct binaryplist_encoder {
     PyObject *objects;
     /* PyDict of unique objects, key is object and val is offset */
     PyObject *uniques;
+    /* Callback function when type is unknown or unspported */
+    PyObject *object_hook;
 } binaryplist_encoder;
 
 static PyObject *PLIST_Error;
