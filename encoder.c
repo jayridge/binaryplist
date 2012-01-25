@@ -318,6 +318,8 @@ static int encode_tuple(binaryplist_encoder *encoder, PyObject *tuple)
 
 int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
 {
+    PyObject *hooked = NULL;
+
     if (!object) {
         PyErr_SetString(PLIST_Error, "object contains an unsupported type");
         return BINARYPLIST_ERROR;
@@ -337,14 +339,18 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         && !PyLong_Check(object) ){
 
         if (encoder->object_hook != Py_None) {
-            fprintf(stderr, "object_hook(obj:%d): ", encoder->nobjects);
-            PyObject_Print(encoder->object_hook, stderr, 0); 
-            fprintf(stderr, "\n");
-            return encoder_encode_object(encoder,
-                PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL));
-        }    
-        PyErr_SetString(PLIST_Error, "object contains an unsupported type");
-        return BINARYPLIST_ERROR;
+            /*
+             * total hack. add the crap object to the table to reference what will
+             * hopefully be the right object returned by the hook.
+             *
+             */
+            PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects));
+            hooked = PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL);
+            return encoder_encode_object(encoder, hooked);
+        } else {
+            PyErr_SetString(PLIST_Error, "object contains an unsupported type");
+            return BINARYPLIST_ERROR;
+        }
     }
 
     if (!encoder->root) encoder->root = object;

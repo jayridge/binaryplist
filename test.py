@@ -4,12 +4,13 @@ import time
 import bson
 
 def hook(o):
+    print "ARRRGH!, ye called me hook!"
     return str(o)
 
 o = {
     "yes":True,
     "no":False,
-    # plutil cannot convert this.
+    # plutil cannot convert this to xml but it encodes properly.
     #"null":None,
     "uni":u'abcd\xe9f',
     "real":12.43243,
@@ -17,9 +18,6 @@ o = {
     "tuple": ('a','b',('c','d')),
     "today":datetime.date.today(),
     "now":time.time(),
-    "bson":bson.objectid.ObjectId()
-}
-o = {
     "bson":bson.objectid.ObjectId()
 }
 
