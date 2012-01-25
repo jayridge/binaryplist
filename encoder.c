@@ -216,13 +216,15 @@ int encoder_write(binaryplist_encoder *encoder)
 
     /* write the offsets */
     off_pos = utstring_len(encoder->output);
-    off_sz = offset_size(objects->ob_size);
+    off_sz = offset_size(off_pos);
     for (i = 0; i < objects->ob_size; i++) {
         //write_bytes(encoder, &offsets[i], off_sz);
         write_multi_be(encoder, offsets[i], off_sz);
     }
     if (encoder->debug) {
-        fprintf(stderr, "offset table: %ld length: %d\n", off_pos, off_sz*encoder->nobjects);
+        fprintf(stderr, "ref_id_sz: %d off_sz: %d offset table: %ld length: %d\n", 
+            encoder->ref_id_sz, off_sz,
+            off_pos, off_sz*encoder->nobjects);
     }
     free(offsets);
 
