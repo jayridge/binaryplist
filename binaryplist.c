@@ -37,7 +37,6 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     Py_DECREF(encoder.ref_table);
     Py_DECREF(encoder.uniques);
     Py_DECREF(encoder.objects);
-    Py_XDECREF(encoder.object_hook);
     utstring_free(encoder.output);
 
     return newobj;
