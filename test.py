@@ -3,9 +3,22 @@ import datetime
 import time
 import bson
 
+class CustomObj:
+    def __init__(self):
+        self._dork = "pudding"
+        self.monkey = "doodle"
+        self.apple = "butter"
+    def to_dict(self):
+        return dict([(k, getattr(self, k)) for k in self.__dict__.keys() if not k.startswith("_")])
+
+
 def hook(o):
     print "ARRRGH!, ye called me hook!"
-    return str(o)
+    if isinstance(o, bson.ObjectId):
+        return str(o)
+    elif isinstance(o, CustomObj):
+        return o.to_dict()
+    return None
 
 o = {
     "yes":True,
@@ -18,13 +31,11 @@ o = {
     "tuple": ('a','b',('c','d')),
     "today":datetime.date.today(),
     "now":time.time(),
-    "bson":bson.objectid.ObjectId()
+    "bson":bson.objectid.ObjectId(),
+    "custom":CustomObj()
 }
 
 bplist = plist.encode(o, debug=True, object_hook=hook)
 f = open('/tmp/ass.plist', 'w+')
 f.write(bplist)
 f.close()
-
-
-

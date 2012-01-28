@@ -8,7 +8,7 @@
 static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"obj", "unique", "debug", "object_hook",  NULL};
-    PyObject *newobj;
+    PyObject *newobj = NULL;
     PyObject *oinput = NULL;
     PyObject *ounique = NULL;
     PyObject *odebug = NULL;
@@ -20,23 +20,24 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
         return NULL;
     }   
     encoder.ref_table = PyDict_New();
-    encoder.uniques = PyDict_New();
     encoder.objects = PyList_New(0);
     utstring_new(encoder.output);
     if (!ounique || (ounique && PyObject_IsTrue(ounique))) {
         /* default to True */
         encoder.dounique = 1;
+        encoder.uniques = PyDict_New();
     }
     if (odebug && PyObject_IsTrue(odebug)) {
         encoder.debug = 1;
     }
-    encoder_encode_object(&encoder, oinput);
-    encoder_write(&encoder);
-    newobj = PyString_FromStringAndSize(utstring_body(encoder.output),
-        utstring_len(encoder.output));
+    if (encoder_encode_object(&encoder, oinput) == BINARYPLIST_OK
+        && encoder_write(&encoder) == BINARYPLIST_OK) {
+        newobj = PyString_FromStringAndSize(utstring_body(encoder.output),
+            utstring_len(encoder.output));
+    }
     Py_DECREF(encoder.ref_table);
-    Py_DECREF(encoder.uniques);
     Py_DECREF(encoder.objects);
+    Py_XDECREF(encoder.uniques);
     utstring_free(encoder.output);
 
     return newobj;
