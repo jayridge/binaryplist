@@ -7,16 +7,17 @@
 
 static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"obj", "unique", "debug", "object_hook",  NULL};
+    static char *kwlist[] = {"obj", "unique", "debug", "max_recursion", "object_hook", NULL};
     PyObject *newobj = NULL;
     PyObject *oinput = NULL;
     PyObject *ounique = NULL;
     PyObject *odebug = NULL;
+    PyObject *orecursion = NULL;
     binaryplist_encoder encoder;
     
     memset(&encoder, 0, sizeof(binaryplist_encoder));
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOO", kwlist, &oinput, &ounique,
-        &odebug, &(encoder.object_hook))) {   
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist, &oinput, &ounique,
+        &odebug, &orecursion, &(encoder.object_hook))) {   
         return NULL;
     }   
     encoder.ref_table = PyDict_New();
@@ -29,6 +30,11 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     }
     if (odebug && PyObject_IsTrue(odebug)) {
         encoder.debug = 1;
+    }
+    if (orecursion && PyInt_Check(orecursion)) {
+        encoder.max_recursion = PyInt_AsLong(orecursion);
+    } else {
+        encoder.max_recursion = 1024*16;
     }
     if (encoder_encode_object(&encoder, oinput) == BINARYPLIST_OK
         && encoder_write(&encoder) == BINARYPLIST_OK) {

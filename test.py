@@ -28,14 +28,14 @@ o = {
     "uni":u'abcd\xe9f',
     "real":12.43243,
     "list":[0,1,2],
-    "tuple": ('a','b',('c','d')),
+    "tuple": ('a','b',('a','b')),
     "today":datetime.date.today(),
     "now":time.time(),
     "bson":bson.objectid.ObjectId(),
     "custom":CustomObj()
 }
 
-bplist = plist.encode(o, debug=True, object_hook=hook)
+bplist = plist.encode(o, debug=True, unique=True, object_hook=hook)
 f = open('/tmp/ass.plist', 'w+')
 f.write(bplist)
 f.close()

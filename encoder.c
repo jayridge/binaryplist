@@ -202,7 +202,6 @@ int encoder_write(binaryplist_encoder *encoder)
         } else if (PyDict_Check(object)) {
             write_dict(encoder, object);
         } else {
-            PyErr_SetString(PLIST_Error, "object is not encodable");
             status = BINARYPLIST_ERROR;
             break;
         }
@@ -318,14 +317,19 @@ static int encode_tuple(binaryplist_encoder *encoder, PyObject *tuple)
 
 int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
 {
-    PyObject *hooked = NULL;
+    PyObject *tmp = NULL;
+    long hash;
 
+    if (++encoder->depth >= encoder->max_recursion) {
+        PyErr_SetString(PLIST_Error, "object depth exceeded max_recursion");
+        return BINARYPLIST_ERROR;
+    }
     if (!object) {
         PyErr_SetString(PLIST_Error, "object contains an unsupported type");
         return BINARYPLIST_ERROR;
     }
     if (encoder->debug) {
-        fprintf(stderr, "encode_object(ref:%d): ", encoder->nobjects);
+        fprintf(stderr, "encode_object(ref:%d depth:%d): ", encoder->nobjects, encoder->depth);
         PyObject_Print(object, stderr, 0); 
         fprintf(stderr, "\n");
     }
@@ -345,8 +349,8 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
              *
              */
             PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects));
-            hooked = PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL);
-            return encoder_encode_object(encoder, hooked);
+            tmp = PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL);
+            return encoder_encode_object(encoder, tmp);
         } else {
             PyErr_SetString(PLIST_Error, "object contains an unsupported type");
             return BINARYPLIST_ERROR;
@@ -354,6 +358,27 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
     }
 
     if (!encoder->root) encoder->root = object;
+
+    if (encoder->dounique && (PyString_Check(object) || PyUnicode_Check(object))) {
+        hash = PyObject_Hash(object);
+        if (hash != -1) {
+            tmp = PyDict_GetItem(encoder->uniques, PyLong_FromLong(hash));
+            if (tmp) {
+                /*
+                 * add object to the reference table pointing to its first
+                 * occurrence. do NOT append to object list since we already
+                 * exist.
+                 *
+                 */
+                PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object),
+                    PyLong_FromLong(get_reference_id(encoder, tmp)));
+                return BINARYPLIST_OK;
+            } else {
+                PyDict_SetItem(encoder->uniques, PyLong_FromLong(hash), object);
+            }
+        }
+    }
+
     PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects++));
     PyList_Append(encoder->objects, object);
 
@@ -364,6 +389,8 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
     } else if (PyTuple_Check(object)) {
         return encode_tuple(encoder, object);
     }
+
+    encoder->depth--;
     return BINARYPLIST_OK;
 }
 
@@ -373,4 +400,7 @@ void encoder_init()
      * Compiler voodoo, must be called from within this file.
      */
     PyDateTime_IMPORT;
+    if (PLIST_Error == NULL) {
+        PLIST_Error = PyErr_NewException("binaryplist.Error", NULL, NULL);
+    }   
 }

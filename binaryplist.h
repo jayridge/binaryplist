@@ -38,6 +38,8 @@ typedef struct binaryplist_encoder {
     int nobjects;
     int dounique;
     int ref_id_sz;
+    int max_recursion;
+    int depth;
     int debug;
     PyObject *root;
     /* Strangely, I do not see a PyObject nappend
