@@ -170,14 +170,22 @@ int encoder_write(binaryplist_encoder *encoder)
             write_int_header(encoder, 0x5, len);
             write_bytes(encoder, buf, len);
         } else if (PyUnicode_Check(object)) {
-            tmp = PyUnicode_EncodeUTF16(PyUnicode_AS_UNICODE(object),
-                                        PyUnicode_GET_SIZE(object),
-                                        errors, 1 /* big endian */);
-            PyString_AsStringAndSize(tmp, &buf, &len);
-            /* nonsense, len here is characters not bytes */
-            write_int_header(encoder, 0x6, len/2);
-            write_bytes(encoder, buf, len);
-            Py_DECREF(tmp);
+            /*
+             * treat 0 len unicode as ascii. apple parser is weak like kitten.
+             *
+             */
+            if (PyUnicode_GET_SIZE(object) == 0) {
+                write_int_header(encoder, 0x5, 0);
+            } else {
+                tmp = PyUnicode_EncodeUTF16(PyUnicode_AS_UNICODE(object),
+                                            PyUnicode_GET_SIZE(object),
+                                            errors, 1 /* big endian */);
+                PyString_AsStringAndSize(tmp, &buf, &len);
+                /* nonsense, len here is characters not bytes */
+                write_int_header(encoder, 0x6, len/2);
+                write_bytes(encoder, buf, len);
+                Py_DECREF(tmp);
+            }
         } else if (PyInt_Check(object) || PyLong_Check(object)) {
             write_int(encoder, PyLong_AsLong(object));
         } else if (PyDate_Check(object) || PyDateTime_Check(object)) {
@@ -226,6 +234,9 @@ int encoder_write(binaryplist_encoder *encoder)
             off_pos, off_sz*encoder->nobjects);
     }
     free(offsets);
+        fprintf(stderr, "ref_id_sz: %d off_sz: %d offset table: %ld length: %d\n", 
+            encoder->ref_id_sz, off_sz,
+            off_pos, off_sz*encoder->nobjects);
 
     /* trailer */
     write_bytes(encoder, padding, 6);
