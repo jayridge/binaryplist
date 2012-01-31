@@ -15,6 +15,10 @@
 #define BPLIST_VERSION          ((uint8_t*)"00")
 #define BPLIST_VERSION_SIZE     3
 
+#define UNIQABLE(o) ( o == Py_True || o == Py_False || o == Py_None \
+    || PyString_Check(o) || PyUnicode_Check(o) || PyFloat_Check(o) || PyInt_Check(o) \
+    || PyDateTime_Check(o) || PyDate_Check(o) || PyLong_Check(o) )
+
 enum
 {
     BPLIST_NULL = 0x00,
@@ -41,16 +45,23 @@ typedef struct binaryplist_encoder {
     int max_recursion;
     int depth;
     int debug;
+    /* This should always be 0th object */
     PyObject *root;
-    /* Strangely, I do not see a PyObject nappend
+    /* PyStrings are immutable, 
      * so we will use a utstring instead */
     UT_string *output;
     /* Dict of obj pointer to reference id */
     PyObject *ref_table;
     /* PyList of flattened objects */
     PyObject *objects;
-    /* PyDict of unique objects, key is object and val is offset */
+    /* 
+     * PyDict of unique objects, key is object and val is offset.
+     * Followed by a few special cases.
+     */
     PyObject *uniques;
+    PyObject *uNone;
+    PyObject *uTrue;
+    PyObject *uFalse;
     /* Callback function when type is unknown or unspported */
     PyObject *object_hook;
 } binaryplist_encoder;

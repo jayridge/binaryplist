@@ -19,7 +19,11 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist, &oinput, &ounique,
         &odebug, &orecursion, &(encoder.object_hook))) {   
         return NULL;
-    }   
+    }
+    if (encoder.object_hook && !PyCallable_Check(encoder.object_hook)) {
+        PyErr_SetString(PLIST_Error, "object_hook is not callable");
+        return NULL;
+    }
     encoder.ref_table = PyDict_New();
     encoder.objects = PyList_New(0);
     utstring_new(encoder.output);

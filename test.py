@@ -11,7 +11,6 @@ class CustomObj:
     def to_dict(self):
         return dict([(k, getattr(self, k)) for k in self.__dict__.keys() if not k.startswith("_")])
 
-
 def hook(o):
     print "ARRRGH!, ye called me hook!"
     if isinstance(o, bson.ObjectId):
@@ -21,7 +20,9 @@ def hook(o):
     return None
 
 o = {
+    "hashtest":[0, 1, 1453079729203098304, 'ass'],
     "yes":True,
+    "maybe":True,
     "no":False,
     # plutil cannot convert this to xml but it encodes properly.
     #"null":None,
@@ -30,9 +31,10 @@ o = {
     "list":[0,1,2],
     "tuple": ('a','b',('a','b')),
     "today":datetime.date.today(),
+    "stilltoday":datetime.date.today(),
     "now":time.time(),
     "bson":bson.objectid.ObjectId(),
-    "custom":CustomObj()
+    "custom":CustomObj(),
 }
 
 bplist = plist.encode(o, debug=True, unique=True, object_hook=hook)
