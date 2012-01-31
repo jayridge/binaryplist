@@ -350,6 +350,9 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
              */
             PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects));
             tmp = PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL);
+            if (!tmp) {
+                return BINARYPLIST_ERROR;
+            }
             return encoder_encode_object(encoder, tmp);
         } else {
             PyErr_SetString(PLIST_Error, "object contains an unsupported type");
