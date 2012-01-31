@@ -324,9 +324,27 @@ static int encode_tuple(binaryplist_encoder *encoder, PyObject *tuple)
     return BINARYPLIST_OK;
 }
 
-int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
+static PyObject *get_unique(binaryplist_encoder *encoder, PyObject *object)
 {
     PyObject *tmp = NULL;
+
+    if (encoder->dounique && UNIQABLE(object)) {
+        if (object == Py_None) {
+            (encoder->uNone) ? (tmp = encoder->uNone) : (tmp = NULL);
+        } else if (object == Py_True) {
+            (encoder->uTrue) ? (tmp = encoder->uTrue) : (tmp = NULL);
+        } else if (object == Py_False) {
+            (encoder->uFalse) ? (tmp = encoder->uFalse) : (tmp = NULL);
+        } else {
+            tmp = PyDict_GetItem(encoder->uniques, object);
+        }
+    }
+    return tmp;
+}
+
+int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
+{
+    PyObject *ou, *tmp = NULL;
 
     if (++encoder->depth >= encoder->max_recursion) {
         PyErr_SetString(PLIST_Error, "object depth exceeded max_recursion");
@@ -351,11 +369,13 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
              * hopefully be the right object returned by the hook.
              *
              */
-            PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects));
             tmp = PyObject_CallFunctionObjArgs(encoder->object_hook, object, NULL);
             if (!tmp) {
                 return BINARYPLIST_ERROR;
             }
+            ou = get_unique(encoder, tmp);
+            PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object),
+                PyLong_FromLong((ou ? get_reference_id(encoder, ou) : encoder->nobjects)));
             return encoder_encode_object(encoder, tmp);
         } else {
             PyErr_SetString(PLIST_Error, "object contains an unsupported type");
@@ -375,6 +395,13 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         } else {
             tmp = PyDict_GetItem(encoder->uniques, object);
             if (!tmp) PyDict_SetItem(encoder->uniques, object, object);
+    if (0 && tmp && encoder->debug) {
+        fprintf(stderr, "**************\nOBJECT: ");
+        PyObject_Print(object, stderr, 0); 
+        fprintf(stderr, "\nMATCH: ");
+        PyObject_Print(object, stderr, 0); 
+        fprintf(stderr, "\n\n");
+    }
         }
         if (tmp) {
             /*
