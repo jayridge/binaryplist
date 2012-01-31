@@ -164,7 +164,8 @@ int encoder_write(binaryplist_encoder *encoder)
         } else if (object == Py_False) {
             write_byte(encoder, BPLIST_FALSE);
         } else if (object == Py_None) {
-            write_byte(encoder, 0x00);
+            //write_byte(encoder, 0x00);
+            write_int_header(encoder, 0x5, 0);
         } else if (PyString_Check(object)) {
             PyString_AsStringAndSize(object, &buf, &len);
             write_int_header(encoder, 0x5, len);
