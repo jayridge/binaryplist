@@ -234,9 +234,6 @@ int encoder_write(binaryplist_encoder *encoder)
             off_pos, off_sz*encoder->nobjects);
     }
     free(offsets);
-        fprintf(stderr, "ref_id_sz: %d off_sz: %d offset table: %ld length: %d\n", 
-            encoder->ref_id_sz, off_sz,
-            off_pos, off_sz*encoder->nobjects);
 
     /* trailer */
     write_bytes(encoder, padding, 6);
