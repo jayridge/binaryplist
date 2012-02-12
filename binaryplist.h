@@ -15,9 +15,9 @@
 #define BPLIST_VERSION          ((uint8_t*)"00")
 #define BPLIST_VERSION_SIZE     3
 
-#define UNIQABLE(o) ( o == Py_True || o == Py_False || o == Py_None \
+#define UNIQABLE(o) ( !PyCallable_Check(o) && ( o == Py_True || o == Py_False || o == Py_None \
     || PyString_Check(o) || PyUnicode_Check(o) || PyFloat_Check(o) || PyInt_Check(o) \
-    || PyDateTime_Check(o) || PyDate_Check(o) || PyLong_Check(o) )
+    || PyDateTime_Check(o) || PyDate_Check(o) || PyLong_Check(o) ))
 
 enum
 {
@@ -45,18 +45,19 @@ typedef struct binaryplist_encoder {
     int max_recursion;
     int depth;
     int debug;
+    /* Hack to treat None as empty string */
+    PyObject *convert_nulls;
     /* This should always be 0th object */
     PyObject *root;
-    /* PyStrings are immutable, 
-     * so we will use a utstring instead */
+    /* PyStrings are immutable, so we use a utstring instead */
     UT_string *output;
     /* Dict of obj pointer to reference id */
     PyObject *ref_table;
     /* PyList of flattened objects */
     PyObject *objects;
     /* 
-     * PyDict of unique objects, key is object and val is offset.
-     * Followed by a few special cases.
+     * PyDict of uniq objects.
+     * Followed by a few special case types.
      */
     PyObject *uniques;
     PyObject *uNone;
@@ -66,7 +67,9 @@ typedef struct binaryplist_encoder {
     PyObject *object_hook;
 } binaryplist_encoder;
 
-static PyObject *PLIST_Error;
+static PyObject *PLIST_Error = NULL;
+static PyObject *binaryplist_uid_type = NULL;
+static PyObject *binaryplist_data_type = NULL;
 
 /* encode.c */
 int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object);

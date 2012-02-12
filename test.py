@@ -12,7 +12,6 @@ class CustomObj:
         return dict([(k, getattr(self, k)) for k in self.__dict__.keys() if not k.startswith("_")])
 
 def hook(o):
-    print "ARRRGH!, ye called me hook!"
     if isinstance(o, bson.ObjectId):
         return str(o)
     elif isinstance(o, CustomObj):
@@ -25,7 +24,7 @@ o = {
     "maybe":True,
     "no":False,
     # plutil cannot convert this to xml but it encodes properly.
-    #"null":None,
+    "null":None,
     "uni":u'abcd\xe9f',
     "real":12.43243,
     "list":[0,1,2],
@@ -35,9 +34,11 @@ o = {
     "now":time.time(),
     "bson":bson.objectid.ObjectId(),
     "custom":CustomObj(),
+    "data":plist.Data('this is my awesome data'),
+    "uid":plist.Uid('13')
 }
 
-bplist = plist.encode(o, debug=True, unique=True, object_hook=hook)
+bplist = plist.encode(o, debug=True, unique=True, convert_nulls=True, object_hook=hook)
 f = open('/tmp/ass.plist', 'w+')
 f.write(bplist)
 f.close()

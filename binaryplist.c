@@ -1,5 +1,9 @@
 #include "binaryplist.h"
 
+#define BINARYPLIST_CMD_STR \
+"class Uid(int):__module__='binaryplist'\n" \
+"class Data(str):__module__='binaryplist'\n"
+
 /*
  * Python command initialization and callbacks.
  *
@@ -7,7 +11,8 @@
 
 static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = {"obj", "unique", "debug", "max_recursion", "object_hook", NULL};
+    static char *kwlist[] = {"obj", "unique", "debug", "convert_nulls",
+                             "max_recursion", "object_hook", NULL};
     PyObject *newobj = NULL;
     PyObject *oinput = NULL;
     PyObject *ounique = NULL;
@@ -16,8 +21,9 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     binaryplist_encoder encoder;
     
     memset(&encoder, 0, sizeof(binaryplist_encoder));
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOO", kwlist, &oinput, &ounique,
-        &odebug, &orecursion, &(encoder.object_hook))) {   
+    encoder.convert_nulls = Py_False;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOO", kwlist, &oinput, &ounique,
+        &odebug, &(encoder.convert_nulls), &orecursion, &(encoder.object_hook))) {   
         return NULL;
     }
     if (encoder.object_hook && !PyCallable_Check(encoder.object_hook)) {
@@ -40,11 +46,13 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     } else {
         encoder.max_recursion = 1024*16;
     }
+
     if (encoder_encode_object(&encoder, oinput) == BINARYPLIST_OK
         && encoder_write(&encoder) == BINARYPLIST_OK) {
         newobj = PyString_FromStringAndSize(utstring_body(encoder.output),
             utstring_len(encoder.output));
     }
+
     Py_DECREF(encoder.ref_table);
     Py_DECREF(encoder.objects);
     Py_XDECREF(encoder.uniques);
@@ -53,7 +61,6 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     return newobj;
 }
 
-
 static PyMethodDef binaryplist_methods[] =
 {
     {"encode", (PyCFunction)binaryplist_encode, METH_VARARGS | METH_KEYWORDS,
@@ -61,19 +68,12 @@ static PyMethodDef binaryplist_methods[] =
     {NULL, NULL, 0, NULL}
 };
  
+
 PyDoc_STRVAR(module_doc, "OS X compatible binary plist encoder/decoder.");
 
 PyMODINIT_FUNC
-initbinaryplist(void)
+initlibbinaryplist(void)
 {
-    PyObject *m;
-
-    m = Py_InitModule3("binaryplist", binaryplist_methods, module_doc);
+    PyObject *module = Py_InitModule3("libbinaryplist", binaryplist_methods, module_doc);
     encoder_init();
-    if (PLIST_Error == NULL) {
-        PLIST_Error = PyErr_NewException("binaryplist.Error", NULL, NULL);
-        if (PLIST_Error) {
-            PyModule_AddObject(m, "Error", PLIST_Error);
-        }
-    }
 }

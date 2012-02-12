@@ -142,9 +142,9 @@ int encoder_write(binaryplist_encoder *encoder)
     int i, off_sz;
     PyListObject *objects = (PyListObject*) encoder->objects;
     PyObject *object, *tmp;
-    long off_pos, *offsets;
-    uint8_t padding[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
     Py_ssize_t len;
+    long off_pos, lval, *offsets;
+    uint8_t padding[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
     const char *errors = NULL;
     char *buf;
     int status = BINARYPLIST_OK;
@@ -159,13 +159,24 @@ int encoder_write(binaryplist_encoder *encoder)
     for (i = 0; i < objects->ob_size; i++) {
         object = objects->ob_item[i];
         offsets[i] = utstring_len(encoder->output);
-        if (object == Py_True) {
-            write_byte(encoder, BPLIST_TRUE);
+       if (binaryplist_data_type && PyObject_IsInstance(object, binaryplist_data_type) == 1) {
+            PyString_AsStringAndSize(object, &buf, &len);
+            write_int_header(encoder, 0x4, len);
+            write_bytes(encoder, buf, len);
+       } else if (binaryplist_uid_type && PyObject_IsInstance(object, binaryplist_uid_type) == 1) {
+            lval = PyLong_AsLong(object);
+            write_byte(encoder, 0x80 + offset_size(lval) - 1);
+            write_multi_be(encoder, lval, offset_size(lval));
+        } else if (object == Py_True) {
+            write_byte(encoder, 0x09);
         } else if (object == Py_False) {
-            write_byte(encoder, BPLIST_FALSE);
+            write_byte(encoder, 0x08);
         } else if (object == Py_None) {
-            //write_byte(encoder, 0x00);
-            write_int_header(encoder, 0x5, 0);
+            if (encoder->convert_nulls == Py_True) {
+                write_int_header(encoder, 0x5, 0);
+            } else {
+                write_byte(encoder, 0x00);
+            }
         } else if (PyString_Check(object)) {
             PyString_AsStringAndSize(object, &buf, &len);
             write_int_header(encoder, 0x5, len);
@@ -226,7 +237,6 @@ int encoder_write(binaryplist_encoder *encoder)
     off_pos = utstring_len(encoder->output);
     off_sz = offset_size(off_pos);
     for (i = 0; i < objects->ob_size; i++) {
-        //write_bytes(encoder, &offsets[i], off_sz);
         write_multi_be(encoder, offsets[i], off_sz);
     }
     if (encoder->debug) {
@@ -395,13 +405,6 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         } else {
             tmp = PyDict_GetItem(encoder->uniques, object);
             if (!tmp) PyDict_SetItem(encoder->uniques, object, object);
-    if (0 && tmp && encoder->debug) {
-        fprintf(stderr, "**************\nOBJECT: ");
-        PyObject_Print(object, stderr, 0); 
-        fprintf(stderr, "\nMATCH: ");
-        PyObject_Print(object, stderr, 0); 
-        fprintf(stderr, "\n\n");
-    }
         }
         if (tmp) {
             /*
@@ -443,11 +446,33 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
 
 void encoder_init()
 {
+    PyObject *tmp, *class, *module_name, *module, *module_dict;
+
     /*
-     * Compiler voodoo, must be called from within this file.
+     * Compiler voodoo ( static ), must be called from within this file.
      */
     PyDateTime_IMPORT;
-    if (PLIST_Error == NULL) {
+    if (!binaryplist_uid_type || !binaryplist_data_type) {
+        module_name = PyString_FromString("binaryplist");
+        module = PyImport_Import(module_name);
+        module_dict = PyModule_GetDict(module);
+
+        class = PyDict_GetItemString(module_dict, "Uid");
+        if (PyCallable_Check(class)) {
+            tmp = PyObject_CallObject(class, NULL);
+            binaryplist_uid_type = PyObject_Type(tmp);
+            Py_DECREF(tmp);
+        }
+        class = PyDict_GetItemString(module_dict, "Data");
+        if (PyCallable_Check(class)) {
+            tmp = PyObject_CallObject(class, NULL);
+            binaryplist_data_type = PyObject_Type(tmp);
+            Py_DECREF(tmp);
+        }
+        Py_XDECREF(module_name);
+        Py_XDECREF(module);
+    }
+    if (!PLIST_Error) {
         PLIST_Error = PyErr_NewException("binaryplist.Error", NULL, NULL);
     }   
 }
