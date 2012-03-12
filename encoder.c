@@ -76,7 +76,11 @@ static void write_int(binaryplist_encoder *encoder, long val)
 
 static long get_reference_id(binaryplist_encoder *encoder, PyObject *obj)
 {
-    return PyLong_AsLong(PyDict_GetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)obj)));
+    long ref;
+    PyObject *ol = PyLong_FromVoidPtr((void *)obj);
+    ref =  PyLong_AsLong(PyDict_GetItem(encoder->ref_table, ol));
+    Py_DECREF(ol);
+    return ref;
 }
 
 static void write_dict(binaryplist_encoder *encoder, PyObject *obj)
@@ -352,6 +356,17 @@ static PyObject *get_unique(binaryplist_encoder *encoder, PyObject *object)
     return tmp;
 }
 
+static void set_ref(binaryplist_encoder *encoder, void *object, long id)
+{
+    PyObject *ol, *oid;
+
+    ol = PyLong_FromVoidPtr(object);
+    oid = PyLong_FromLong(id);
+    PyDict_SetItem(encoder->ref_table, ol, oid);
+    Py_DECREF(ol);
+    Py_DECREF(oid);
+}
+
 int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
 {
     PyObject *ou, *tmp = NULL;
@@ -384,8 +399,7 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
                 return BINARYPLIST_ERROR;
             }
             ou = get_unique(encoder, tmp);
-            PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object),
-                PyLong_FromLong((ou ? get_reference_id(encoder, ou) : encoder->nobjects)));
+            set_ref(encoder, (void *)object, (ou ? get_reference_id(encoder, ou) : encoder->nobjects));
             return encoder_encode_object(encoder, tmp);
         } else {
             PyErr_SetString(PLIST_Error, "object contains an unsupported type");
@@ -404,7 +418,10 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
             (encoder->uFalse) ? (tmp = encoder->uFalse) : (encoder->uFalse = object);
         } else {
             tmp = PyDict_GetItem(encoder->uniques, object);
-            if (!tmp) PyDict_SetItem(encoder->uniques, object, object);
+            if (!tmp) {
+                PyDict_SetItem(encoder->uniques, object, object);
+                Py_DECREF(object);
+            }
         }
         if (tmp) {
             /*
@@ -413,8 +430,7 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
              * exist.
              *
              */
-            PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), 
-                PyLong_FromLong(get_reference_id(encoder, tmp)));
+            set_ref(encoder, (void *)object, get_reference_id(encoder, tmp));
             if (encoder->debug) {
                 fprintf(stderr, "encode_object(UNIQ ref:%ld): ", get_reference_id(encoder, tmp));
                 PyObject_Print(object, stderr, 0); 
@@ -429,7 +445,7 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         PyObject_Print(object, stderr, 0); 
         fprintf(stderr, "\n");
     }
-    PyDict_SetItem(encoder->ref_table, PyLong_FromVoidPtr((void *)object), PyLong_FromLong(encoder->nobjects++));
+    set_ref(encoder, (void *)object, encoder->nobjects++);
     PyList_Append(encoder->objects, object);
 
     if (PyDict_Check(object)) {
