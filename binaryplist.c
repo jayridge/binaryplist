@@ -12,7 +12,7 @@
 static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kwargs)
 {
     static char *kwlist[] = {"obj", "unique", "debug", "convert_nulls",
-                             "max_recursion", "object_hook", NULL};
+                             "max_recursion", "object_hook", "as_ascii", NULL};
     PyObject *newobj = NULL;
     PyObject *oinput = NULL;
     PyObject *ounique = NULL;
@@ -22,8 +22,10 @@ static PyObject* binaryplist_encode(PyObject *self, PyObject *args, PyObject *kw
     
     memset(&encoder, 0, sizeof(binaryplist_encoder));
     encoder.convert_nulls = Py_False;
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOO", kwlist, &oinput, &ounique,
-        &odebug, &(encoder.convert_nulls), &orecursion, &(encoder.object_hook))) {   
+    encoder.as_ascii = Py_False;
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOOO", kwlist, &oinput, &ounique,
+        &odebug, &(encoder.convert_nulls), &orecursion, &(encoder.object_hook),
+        &(encoder.as_ascii))) {   
         return NULL;
     }
     if (encoder.object_hook && !PyCallable_Check(encoder.object_hook)) {

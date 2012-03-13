@@ -193,8 +193,7 @@ int encoder_write(binaryplist_encoder *encoder)
             if (PyUnicode_GET_SIZE(object) == 0) {
                 write_int_header(encoder, 0x5, 0);
             } else {
-                tmp = PyUnicode_AsASCIIString(object);
-                if (tmp) {
+                if (encoder->as_ascii == Py_True && (tmp = PyUnicode_AsASCIIString(object))) {
                     PyString_AsStringAndSize(tmp, &buf, &len);
                     write_int_header(encoder, 0x5, len);
                     write_bytes(encoder, buf, len);

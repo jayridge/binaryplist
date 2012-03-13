@@ -45,6 +45,8 @@ typedef struct binaryplist_encoder {
     int max_recursion;
     int depth;
     int debug;
+    /* Hack to treat uni as ascii where possible */
+    PyObject *as_ascii;
     /* Hack to treat None as empty string */
     PyObject *convert_nulls;
     /* This should always be 0th object */
