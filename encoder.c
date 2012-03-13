@@ -446,6 +446,7 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         fprintf(stderr, "\n");
     }
     set_ref(encoder, (void *)object, encoder->nobjects++);
+    Py_INCREF(object);
     PyList_Append(encoder->objects, object);
 
     if (PyDict_Check(object)) {
