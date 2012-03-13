@@ -193,13 +193,21 @@ int encoder_write(binaryplist_encoder *encoder)
             if (PyUnicode_GET_SIZE(object) == 0) {
                 write_int_header(encoder, 0x5, 0);
             } else {
-                tmp = PyUnicode_EncodeUTF16(PyUnicode_AS_UNICODE(object),
-                                            PyUnicode_GET_SIZE(object),
-                                            errors, 1 /* big endian */);
-                PyString_AsStringAndSize(tmp, &buf, &len);
-                /* nonsense, len here is characters not bytes */
-                write_int_header(encoder, 0x6, len/2);
-                write_bytes(encoder, buf, len);
+                tmp = PyUnicode_AsASCIIString(object);
+                if (tmp) {
+                    PyString_AsStringAndSize(tmp, &buf, &len);
+                    write_int_header(encoder, 0x5, len);
+                    write_bytes(encoder, buf, len);
+                } else {
+                    PyErr_Clear();
+                    tmp = PyUnicode_EncodeUTF16(PyUnicode_AS_UNICODE(object),
+                                                PyUnicode_GET_SIZE(object),
+                                                errors, 1 /* big endian */);
+                    PyString_AsStringAndSize(tmp, &buf, &len);
+                    /* nonsense, len here is characters not bytes */
+                    write_int_header(encoder, 0x6, len/2);
+                    write_bytes(encoder, buf, len);
+                }
                 Py_DECREF(tmp);
             }
         } else if (PyInt_Check(object) || PyLong_Check(object)) {
