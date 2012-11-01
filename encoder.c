@@ -379,10 +379,6 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
     PyObject *ou, *tmp = NULL;
     int ret;
 
-    if (++encoder->depth >= encoder->max_recursion) {
-        PyErr_SetString(PLIST_Error, "object depth exceeded max_recursion");
-        return BINARYPLIST_ERROR;
-    }
     if (!object) {
         PyErr_SetString(PLIST_Error, "object contains an unsupported type");
         return BINARYPLIST_ERROR;
@@ -452,6 +448,10 @@ int encoder_encode_object(binaryplist_encoder *encoder, PyObject *object)
         }
     }
 
+    if (++encoder->depth >= encoder->max_recursion) {
+        PyErr_SetString(PLIST_Error, "object depth exceeded max_recursion");
+        return BINARYPLIST_ERROR;
+    }
     if (encoder->debug) {
         fprintf(stderr, "encode_object(ref:%d depth:%d): ", encoder->nobjects, encoder->depth);
         PyObject_Print(object, stderr, 0); 
